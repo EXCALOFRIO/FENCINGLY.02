@@ -7,24 +7,19 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Tournament {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
-  name         String
-  location     String
-  startDate    DateTime
-  endDate      DateTime
-  modality     String
-  category     String
-  weaponType   String
-  level        String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  adminUser    String   @unique
-  adminPassword String
-}
-
 model User {
   id       String @id @default(auto()) @map("_id") @db.ObjectId
   username String @unique
   password String
+  tournaments Tournament[]
+}
+
+model Tournament {
+  id           String  @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  status       String
+  currentStage Int
+  participants String[]
+  admin      User     @relation(fields: [adminId], references: [id])
+  adminId      String  @db.ObjectId
 }
