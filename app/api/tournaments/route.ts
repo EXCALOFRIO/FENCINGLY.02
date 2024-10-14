@@ -20,16 +20,28 @@ export async function POST(request: Request) {
   try {
     const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
-    const user = await prisma.user.create({
-      data: { username: adminUsername, password: hashedPassword },
+    // Verificar si el usuario ya existe
+    let user = await prisma.user.findUnique({
+      where: { username: adminUsername }
     });
 
+    // Si el usuario no existe, lo creamos
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          username: adminUsername,
+          password: hashedPassword,
+        },
+      });
+    }
+
+    // Crear el torneo
     const tournament = await prisma.tournament.create({
       data: {
         name,
         status: 'Not Started',
         currentStage: 0,
-        participants: [],
+        participants: { create: [] },  // <-- Correcto para Prisma
         adminId: user.id,
       },
     });
@@ -37,6 +49,11 @@ export async function POST(request: Request) {
     return NextResponse.json(tournament);
   } catch (error) {
     console.error('Error creating tournament:', error);
+
+    if (error instanceof Error && error.message.includes('Unique constraint failed on the constraint: `User_username_key`')) {
+      return NextResponse.json({ error: 'Username is already in use.' }, { status: 400 });
+    }
+
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

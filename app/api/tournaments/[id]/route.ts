@@ -1,30 +1,43 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
+// Obtener los participantes de un torneo específico
 export async function GET(request: Request, { params }: { params: { id: string } }) {
+  const url = new URL(request.url);
+  const selectParticipantsOnly = url.searchParams.get("select") === "participants"; // Corregir uso de URL
+  console.log("params.id:", params.id);
+  
   try {
     const tournament = await prisma.tournament.findUnique({
       where: { id: params.id },
+      select: selectParticipantsOnly ? { participants: true } : undefined, // Condicional para solo seleccionar participantes
     });
 
     if (!tournament) {
-      return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
+      console.log("Tournament not found for ID:", params.id);
+      return NextResponse.json({ error: 'Torneo no encontrado' }, { status: 404 });
     }
-
-    return NextResponse.json(tournament);
+    
+    return NextResponse.json(selectParticipantsOnly ? { participants: tournament.participants } : tournament);
+  
   } catch (error) {
-    console.error('Error fetching tournament:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Error fetching tournament data:', error);
+    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
   }
 }
 
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
-  const { status, currentStage, participants } = await request.json();
 
+
+export async function PUT(request: Request, { params }: { params: { id: string } }) {
   try {
+    const { participants, currentStage } = await request.json();
+
     const updatedTournament = await prisma.tournament.update({
       where: { id: params.id },
-      data: { status, currentStage, participants },
+      data: {
+        participants: participants, // Almacenar participantes directamente como JSON
+        currentStage: currentStage,
+      },
     });
 
     return NextResponse.json(updatedTournament);
@@ -33,3 +46,4 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+

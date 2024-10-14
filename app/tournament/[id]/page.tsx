@@ -4,12 +4,19 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
+interface Participant {
+  id: string;
+  name: string;
+  country: string;
+  initialRanking: number;
+}
+
 interface TournamentDetails {
   id: string;
   name: string;
   status: string;
-  participants: string[];
   currentStage: number;
+  participants: Participant[];
 }
 
 export default function TournamentDetails() {
@@ -50,8 +57,10 @@ export default function TournamentDetails() {
           <p>Current Stage: {tournament.currentStage}</p>
           <h2 className="text-xl font-semibold mt-4 mb-2">Participants</h2>
           <ul>
-            {tournament.participants.map((participant, index) => (
-              <li key={index}>{participant}</li>
+            {tournament.participants.map((participant) => (
+              <li key={participant.id}>
+                {participant.initialRanking}. {participant.name} - {participant.country}
+              </li>
             ))}
           </ul>
         </CardContent>
