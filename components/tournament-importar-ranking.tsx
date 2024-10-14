@@ -28,11 +28,14 @@ export default function TournamentImportarRanking({
   useEffect(() => {
     const fetchTiradores = async () => {
       try {
-        const response = await fetch(`/api/tournaments/${tournamentId}?select=participants`); // Añadir el parámetro de consulta
+        const response = await fetch(`/api/tournaments/${tournamentId}?select=participants`);
         if (response.ok) {
           const data = await response.json();
-          setTiradores(data.participants || []);
-          onUpdateTiradores(data.participants || []);
+
+          // Aseguramos que data y data.participants existen
+          const participants = Array.isArray(data.participants) ? data.participants : [];
+          setTiradores(participants);
+          onUpdateTiradores(participants);
         } else {
           console.error('Error loading participants:', response.status, response.statusText);
           setTiradores([]);
@@ -48,7 +51,6 @@ export default function TournamentImportarRanking({
     fetchTiradores();
   }, [tournamentId]);
   
-
   useEffect(() => {
     if (addingIndex !== null && nameInputRef.current) {
       nameInputRef.current.focus();
@@ -128,60 +130,58 @@ export default function TournamentImportarRanking({
     <div className="p-4 max-w-md mx-auto">
       <h1 className="text-2xl font-bold mb-6">Ranking de Tiradores</h1>
       <ul className="space-y-2">
-        {tiradores.map((tirador, index) => (
-          <React.Fragment key={index}>
-            <li className="bg-background rounded-md shadow-sm relative group">
-              <div className="flex items-center justify-between p-3 border border-input">
-                <span className="flex-grow">
-                  {tirador.name} - {tirador.country}
-                </span>
-                <div className="flex items-center space-x-1">
+        {tiradores.length > 0 ? (
+          tiradores.map((tirador, index) => (
+            <React.Fragment key={index}>
+              <li className="bg-background rounded-md shadow-sm relative group">
+                <div className="flex items-center justify-between p-3 border border-input">
+                  <span className="flex-grow">
+                    {tirador.name} - {tirador.country}
+                  </span>
+                  <div className="flex items-center space-x-1">
+                    <Button
+                      onClick={() => moveTirador(index, -1)}
+                      disabled={index === 0}
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0"
+                    >
+                      <ChevronUp size={16} />
+                    </Button>
+                    <Button
+                      onClick={() => moveTirador(index, 1)}
+                      disabled={index === tiradores.length - 1}
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0"
+                    >
+                      <ChevronDown size={16} />
+                    </Button>
+                    <Button
+                      onClick={() => handleRemove(index)}
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                    >
+                      <X size={16} />
+                    </Button>
+                  </div>
+                </div>
+              </li>
+              <div className="h-2 relative">
+                <div className="absolute left-0 right-0 top-0 h-2 flex items-center justify-center">
                   <Button
-                    onClick={() => moveTirador(index, -1)}
-                    disabled={index === 0}
+                    onClick={() => setAddingIndex(index + 1)}
+                    className="h-6 w-6 p-0 rounded-full bg-background hover:bg-primary hover:text-primary-foreground border border-input shadow-sm transition-colors duration-300"
                     size="sm"
-                    variant="ghost"
-                    className="h-8 w-8 p-0"
                   >
-                    <ChevronUp size={16} />
-                  </Button>
-                  <Button
-                    onClick={() => moveTirador(index, 1)}
-                    disabled={index === tiradores.length - 1}
-                    size="sm"
-                    variant="ghost"
-                    className="h-8 w-8 p-0"
-                  >
-                    <ChevronDown size={16} />
-                  </Button>
-                  <Button
-                    onClick={() => handleRemove(index)}
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                  >
-                    <X size={16} />
+                    <Plus size={12} />
                   </Button>
                 </div>
               </div>
-            </li>
-            <div className="h-2 relative">
-              <div className="absolute left-0 right-0 top-0 h-2 flex items-center justify-center">
-                <Button
-                  onClick={() => setAddingIndex(index + 1)}
-                  className="h-6 w-6 p-0 rounded-full bg-background hover:bg-primary hover:text-primary-foreground border border-input shadow-sm transition-colors duration-300"
-                  size="sm"
-                >
-                  <Plus size={12} />
-                </Button>
-              </div>
-            </div>
-          </React.Fragment>
-        ))}
-
-        {addingIndex === tiradores.length && renderAddInput()}
-
-        {tiradores.length === 0 && addingIndex === null && (
+            </React.Fragment>
+          ))
+        ) : (
           <div className="text-center py-8 animate-in fade-in-50 duration-300">
             <p className="text-muted-foreground mb-4">No hay tiradores en el ranking.</p>
             <Button onClick={() => setAddingIndex(0)} className="mt-2">
@@ -189,6 +189,8 @@ export default function TournamentImportarRanking({
             </Button>
           </div>
         )}
+
+        {addingIndex === tiradores.length && renderAddInput()}
       </ul>
 
       <div className="mt-6 flex justify-between items-center animate-in slide-in-from-bottom-2 duration-300">

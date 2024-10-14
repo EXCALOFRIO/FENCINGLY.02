@@ -41,7 +41,7 @@ export async function POST(request: Request) {
         name,
         status: 'Not Started',
         currentStage: 0,
-        participants: { create: [] },  // <-- Correcto para Prisma
+        participants: { create: [] },
         adminId: user.id,
       },
     });
