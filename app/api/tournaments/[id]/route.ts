@@ -30,13 +30,14 @@ export async function GET(request: Request, { params }: { params: { id: string }
 
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
   try {
-    const { participants, currentStage } = await request.json();
+    const { participants, currentStage, numPoules } = await request.json(); // Añadir numPoules
 
     const updatedTournament = await prisma.tournament.update({
       where: { id: params.id },
       data: {
-        participants: participants, // Almacenar participantes directamente como JSON
+        participants: participants,
         currentStage: currentStage,
+        numPoules: numPoules, // Actualizar el número de poules
       },
     });
 
@@ -46,4 +47,5 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+
 

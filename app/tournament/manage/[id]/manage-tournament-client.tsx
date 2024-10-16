@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Steps } from '@/components/steps';
 import { TournamentForm } from '@/components/tournament-form';
+import { PouleSelector } from '@/components/poule-selector';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,7 +21,7 @@ import {
 const steps = [
   'Importar Ranking',
   'Poules',
-  'Clasificacion post Poules',
+  'Clasificación post Poules',
   'Eliminaciones directas',
   'Ranking Final',
 ];
@@ -30,14 +31,15 @@ interface Participant {
   country: string;
 }
 
-export default function ManageTournamentClient() { // No params destructuring here
-  const params = useParams();  // Get params using useParams hook
+export default function ManageTournamentClient() {
+  const params = useParams();
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [participants, setParticipants] = useState<Participant[]>([]);
+  const [numPoules, setNumPoules] = useState<number | null>(null); // Estado para el número de poules
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const tournamentId = Array.isArray(params.id) ? params.id[0] : params.id; // Correct this line
+  const tournamentId = Array.isArray(params.id) ? params.id[0] : params.id;
 
   useEffect(() => {
     const fetchTournamentData = async () => {
@@ -45,7 +47,7 @@ export default function ManageTournamentClient() { // No params destructuring he
         const response = await fetch(`/api/tournaments/${tournamentId}`);
         if (response.ok) {
           const data = await response.json();
-          setCurrentStep(data.currentStage || 0); // Actualiza el currentStep con el currentStage de la BBDD
+          setCurrentStep(data.currentStage || 0); 
         }
       } catch (error) {
         console.error('Error fetching tournament data:', error);
@@ -75,7 +77,7 @@ export default function ManageTournamentClient() { // No params destructuring he
           }
   
           setIsAuthenticated(true);
-          fetchTournamentData(); // Llama a la función para obtener los datos del torneo
+          fetchTournamentData(); 
         } catch (error) {
           console.error('Authentication error:', error);
           localStorage.removeItem('token');
@@ -86,21 +88,49 @@ export default function ManageTournamentClient() { // No params destructuring he
       checkAuth();
     }
   }, [params, router]);
-  
 
   const handleNext = async () => {
     if (currentStep === 0) {
       setShowConfirmDialog(true);
-    } else if (currentStep < steps.length - 1) {
+    } else if (currentStep === 1 && numPoules === null) {
+      console.error('You need to select the number of poules before proceeding');
+      return;
+    } else if (currentStep === 1 && numPoules === 0) {
+      // Si numPoules es 0, saltar directamente al paso 4
       try {
+        const body = {
+          currentStage: 3, // Saltamos al paso 4
+          numPoules,      // Guardamos el número de poules como 0
+        };
+  
         const response = await fetch(`/api/tournaments/${tournamentId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ currentStage: currentStep + 1 }), // Actualiza el currentStage en la BBDD
+          body: JSON.stringify(body),
         });
   
         if (response.ok) {
-          setCurrentStep(currentStep + 1); // Solo actualiza el estado si la actualización en BBDD es exitosa
+          setCurrentStep(3); // Actualizamos el estado del paso actual al 4
+        } else {
+          console.error('Failed to update tournament');
+        }
+      } catch (error) {
+        console.error('Error updating tournament:', error);
+      }
+    } else if (currentStep < steps.length - 1) {
+      try {
+        const body = currentStep === 1
+          ? { currentStage: currentStep + 1, numPoules } 
+          : { currentStage: currentStep + 1 };
+  
+        const response = await fetch(`/api/tournaments/${tournamentId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+  
+        if (response.ok) {
+          setCurrentStep(currentStep + 1);
         } else {
           console.error('Failed to update tournament');
         }
@@ -112,18 +142,22 @@ export default function ManageTournamentClient() { // No params destructuring he
   
 
   const handlePrevious = () => {
-    if (currentStep > 0) {
+    if (currentStep === 4 && numPoules === 0) {
+      // Si estamos en el paso 4 y numPoules es 0, saltamos el paso 3 y vamos directamente al paso 2
+      setCurrentStep(1);
+    } else if (currentStep > 0) {
       setCurrentStep(currentStep - 1);
     }
   };
+  
 
   const handleConfirmRanking = async () => {
     if (params) {
       try {
         const response = await fetch(`/api/tournaments/${params.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ participants, currentStage: 1 }),
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ participants, currentStage: 1 }),
         });
 
         if (response.ok) {
@@ -142,6 +176,10 @@ export default function ManageTournamentClient() { // No params destructuring he
     setParticipants(updatedParticipants);
   };
 
+  const handleSelectPoules = (numPoules: number) => {
+    setNumPoules(numPoules);
+  };
+
   if (!isAuthenticated) {
     return <div>Authenticating...</div>;
   }
@@ -156,13 +194,18 @@ export default function ManageTournamentClient() { // No params destructuring he
         <CardContent>
           <Steps steps={steps} currentStep={currentStep} />
           <div className="mt-8 space-y-4">
-            {params && ( // Conditionally render TournamentForm
+            {params && (
               <TournamentForm
                 step={currentStep}
                 onUpdateParticipants={handleUpdateParticipants}
                 tournamentId={tournamentId}
               />
             )}
+            
+            {currentStep === 1 && (
+              <PouleSelector numParticipants={participants.length} onSelectPoules={handleSelectPoules} />
+            )}
+            
             <div className="flex justify-between">
               <Button
                 type="button"

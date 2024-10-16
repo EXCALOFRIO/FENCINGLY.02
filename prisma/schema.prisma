@@ -21,6 +21,7 @@ model Tournament {
   name         String
   status       String
   currentStage Int
+  numPoules    Int?
   adminId      String        // Foreign key for the admin user
   admin        User          @relation(fields: [adminId], references: [id])
   createdAt    DateTime      @default(now())

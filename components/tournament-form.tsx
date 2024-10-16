@@ -41,14 +41,7 @@ export function TournamentForm({ step, tournamentId, onUpdateParticipants }: Tou
         return (
           <div className="space-y-4">
             <h2 className="text-xl font-semibold">Poules</h2>
-            <Label htmlFor="poules">Poule Assignments</Label>
-            <Textarea
-              id="poules"
-              placeholder="Enter poule assignments"
-              value={poules}
-              onChange={(e) => setPoules(e.target.value)}
-              rows={10}
-            />
+            <Label htmlFor="poules">Selecciona el numero de Poules, puedes dejarlo a 0 para no hacer ronda de Poules</Label>
           </div>
         );
       // Agrega aquí el resto de los casos para los pasos posteriores (classification, directElimination, etc.)
