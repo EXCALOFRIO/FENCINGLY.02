@@ -26,5 +26,7 @@ model Tournament {
   admin        User          @relation(fields: [adminId], references: [id])
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
-  participants   Json         // Almacenar como campo JSON
+  participants Json
+  poules       Json?         // <-- Nuevo campo para almacenar las poules
 }
+

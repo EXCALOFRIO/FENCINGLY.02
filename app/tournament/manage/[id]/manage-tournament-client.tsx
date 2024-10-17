@@ -31,13 +31,19 @@ interface Participant {
   country: string;
 }
 
+interface PouleFencer {
+  name: string;
+  score: number;
+}
+
 export default function ManageTournamentClient() {
   const params = useParams();
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [participants, setParticipants] = useState<Participant[]>([]);
-  const [numPoules, setNumPoules] = useState<number | null>(null); // Estado para el número de poules
+  const [numPoules, setNumPoules] = useState<number | null>(null);
+  const [poules, setPoules] = useState<PouleFencer[][]>([]); 
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const tournamentId = Array.isArray(params.id) ? params.id[0] : params.id;
 
@@ -89,6 +95,25 @@ export default function ManageTournamentClient() {
     }
   }, [params, router]);
 
+  useEffect(() => {
+    const fetchTournamentData = async () => {
+      try {
+        const response = await fetch(`/api/tournaments/${tournamentId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setCurrentStep(data.currentStage || 0);
+          if (data.poules) {
+            setPoules(JSON.parse(data.poules));
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching tournament data:', error);
+      }
+    };
+  
+    fetchTournamentData();
+  }, [tournamentId]);
+
   const handleNext = async () => {
     if (currentStep === 0) {
       setShowConfirmDialog(true);
@@ -96,21 +121,18 @@ export default function ManageTournamentClient() {
       console.error('You need to select the number of poules before proceeding');
       return;
     } else if (currentStep === 1 && numPoules === 0) {
-      // Si numPoules es 0, saltar directamente al paso 4
       try {
         const body = {
-          currentStage: 3, // Saltamos al paso 4
-          numPoules,      // Guardamos el número de poules como 0
+          currentStage: 3,
+          numPoules,
         };
-  
         const response = await fetch(`/api/tournaments/${tournamentId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         });
-  
         if (response.ok) {
-          setCurrentStep(3); // Actualizamos el estado del paso actual al 4
+          setCurrentStep(3);
         } else {
           console.error('Failed to update tournament');
         }
@@ -120,7 +142,7 @@ export default function ManageTournamentClient() {
     } else if (currentStep < steps.length - 1) {
       try {
         const body = currentStep === 1
-          ? { currentStage: currentStep + 1, numPoules } 
+          ? { currentStage: currentStep + 1, numPoules }
           : { currentStage: currentStep + 1 };
   
         const response = await fetch(`/api/tournaments/${tournamentId}`, {
@@ -138,18 +160,42 @@ export default function ManageTournamentClient() {
         console.error('Error updating tournament:', error);
       }
     }
-  };
+    if (currentStep === 2) {
+      if (poules.length === 0) {
+        console.error('Poules no están disponibles');
+        return;
+      }
   
+      const body = {
+        currentStage: currentStep + 1,
+        poules,
+      };
+  
+      try {
+        const response = await fetch(`/api/tournaments/${tournamentId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+  
+        if (response.ok) {
+          setCurrentStep(currentStep + 1);
+        } else {
+          console.error('Error actualizando el torneo');
+        }
+      } catch (error) {
+        console.error('Error actualizando el torneo', error);
+      }
+    }
+  };
 
   const handlePrevious = () => {
     if (currentStep === 4 && numPoules === 0) {
-      // Si estamos en el paso 4 y numPoules es 0, saltamos el paso 3 y vamos directamente al paso 2
       setCurrentStep(1);
     } else if (currentStep > 0) {
       setCurrentStep(currentStep - 1);
     }
   };
-  
 
   const handleConfirmRanking = async () => {
     if (params) {
@@ -170,6 +216,10 @@ export default function ManageTournamentClient() {
         console.error('Error updating tournament:', error);
       }
     }
+  };
+
+  const handleUpdatePoules = (updatedPoules: PouleFencer[][]) => {
+    setPoules(updatedPoules);
   };
 
   const handleUpdateParticipants = (updatedParticipants: Participant[]) => {
