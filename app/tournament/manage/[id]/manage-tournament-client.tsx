@@ -45,7 +45,7 @@ interface PouleFencer {
   };
 }
 
-export default function ManageTournamentClient() {
+export default function Component() {
   const params = useParams();
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
@@ -63,8 +63,8 @@ export default function ManageTournamentClient() {
         if (response.ok) {
           const data = await response.json();
           setCurrentStep(data.currentStage || 0);
-          setNumPoules(data.numPoules || 0);
-          setParticipants(data.participants || []);
+          setNumPoules(data.numPoules || null);
+          setParticipants(Array.isArray(data.participants) ? data.participants : []);
           if (data.poules) {
             setPoules(JSON.parse(data.poules));
           }
@@ -92,7 +92,7 @@ export default function ManageTournamentClient() {
           }
   
           const data = await response.json();
-          if (data.tournamentId !== params.id) {
+          if (data.tournamentId !== tournamentId) {
             throw new Error('Unauthorized for this tournament');
           }
   
@@ -147,9 +147,9 @@ export default function ManageTournamentClient() {
   };
 
   const handleConfirmRanking = async () => {
-    if (params) {
+    if (tournamentId) {
       try {
-        const response = await fetch(`/api/tournaments/${params.id}`, {
+        const response = await fetch(`/api/tournaments/${tournamentId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ participants, currentStage: 1 }),
@@ -158,7 +158,7 @@ export default function ManageTournamentClient() {
         if (response.ok) {
           setCurrentStep(1);
           setShowConfirmDialog(false);
-        }else {
+        } else {
           console.error('Failed to update tournament');
         }
       } catch (error) {
@@ -175,13 +175,13 @@ export default function ManageTournamentClient() {
     setParticipants(updatedParticipants);
   };
 
-  if (!isAuthenticated) {
-    return <div>Authenticating...</div>;
-  }
-
   const handleSelectPoules = (selectedNumPoules: number) => {
     setNumPoules(selectedNumPoules);
   };
+
+  if (!isAuthenticated) {
+    return <div>Authenticating...</div>;
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -198,6 +198,7 @@ export default function ManageTournamentClient() {
                 step={currentStep}
                 onUpdateParticipants={handleUpdateParticipants}
                 tournamentId={tournamentId}
+                initialParticipants={participants}
               />
             )}
             
