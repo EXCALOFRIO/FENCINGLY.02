@@ -1,16 +1,25 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-// Obtener los participantes de un torneo específico
 export async function GET(request: Request, { params }: { params: { id: string } }) {
   const url = new URL(request.url);
-  const selectParticipantsOnly = url.searchParams.get("select") === "participants"; // Corregir uso de URL
+  const selectParticipantsOnly = url.searchParams.get("select") === "participants";
   console.log("params.id:", params.id);
   
   try {
     const tournament = await prisma.tournament.findUnique({
       where: { id: params.id },
-      select: selectParticipantsOnly ? { participants: true } : undefined, // Condicional para solo seleccionar participantes
+      select: selectParticipantsOnly 
+        ? { participants: true } 
+        : { 
+            id: true, 
+            name: true, 
+            status: true, 
+            currentStage: true, 
+            numPoules: true, 
+            participants: true, 
+            poules: true 
+          },
     });
 
     if (!tournament) {
@@ -18,7 +27,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
       return NextResponse.json({ error: 'Torneo no encontrado' }, { status: 404 });
     }
     
-    return NextResponse.json(selectParticipantsOnly ? { participants: tournament.participants } : tournament);
+    return NextResponse.json(tournament);
   
   } catch (error) {
     console.error('Error fetching tournament data:', error);
@@ -26,11 +35,9 @@ export async function GET(request: Request, { params }: { params: { id: string }
   }
 }
 
-
-
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
   try {
-    const { participants, currentStage, numPoules, poules } = await request.json(); // Añadir poules
+    const { participants, currentStage, numPoules, poules } = await request.json();
 
     const updatedTournament = await prisma.tournament.update({
       where: { id: params.id },
@@ -38,7 +45,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
         participants: participants,
         currentStage: currentStage,
         numPoules: numPoules,
-        poules: poules ? JSON.stringify(poules) : undefined, // Guardar las poules
+        poules: poules,
       },
     });
 
@@ -48,6 +55,3 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
-
-
-

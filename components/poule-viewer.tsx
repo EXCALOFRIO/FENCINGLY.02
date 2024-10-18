@@ -26,29 +26,44 @@ interface PouleProps {
   onUpdatePoules: (poules: PouleFencer[][]) => void;
 }
 
-function divideTiradores(tiradores: Participant[], numPoules: number): PouleFencer[][] {
-  // Crear una matriz vacía para las poules
-  const resultado: PouleFencer[][] = Array.from({ length: numPoules }, () => []);
+function divideTiradores(tiradores: Participant[], poules: number): PouleFencer[][] {
+  const resultado: PouleFencer[][] = Array.from({ length: poules }, () => []);
+  const orden = generarArray(poules, tiradores.length);
 
-  let pouleIndex = 0;
+  let index = 0;
 
-  // Distribuir los tiradores de manera equitativa entre las poules
   for (const tirador of tiradores) {
-    // Asegurar que se distribuyen de manera circular entre las poules
-    resultado[pouleIndex].push({
-      ...tirador,
-      scores: Array(tiradores.length - 1).fill(0),
-      stats: { V: 0, VM: 0, TS: 0, TR: 0, Ind: 0 },
-    });
+    let pouleIndex = orden[index] - 1;
+    let found = false;
 
-    // Incrementar el índice de la poule, asegurando que se cicla de vuelta al inicio
-    pouleIndex = (pouleIndex + 1) % numPoules;
+    while (!found) {
+      if (!existeMismoPais(resultado[pouleIndex], tirador.country)) {
+        resultado[pouleIndex].push({
+          ...tirador,
+          scores: Array(tiradores.length - 1).fill(0),
+          stats: { V: 0, VM: 0, TS: 0, TR: 0, Ind: 0 },
+        });
+        found = true;
+      } else {
+        index = (index + 1) % orden.length;
+        pouleIndex = orden[index] - 1;
+
+        if (index === 0 && pouleIndex === orden[0] - 1) {
+          resultado[orden[0] - 1].push({
+            ...tirador,
+            scores: Array(tiradores.length - 1).fill(0),
+            stats: { V: 0, VM: 0, TS: 0, TR: 0, Ind: 0 },
+          });
+          found = true;
+        }
+      }
+    }
+    orden.splice(index, 1);
+    index = 0;
   }
 
   return resultado;
 }
-
-
 
 function existeMismoPais(poule: PouleFencer[], pais: string): boolean {
   return poule.some(tirador => tirador.country === pais);

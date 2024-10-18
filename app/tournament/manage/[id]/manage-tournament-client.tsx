@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation'; // Import useParams
+import { useRouter, useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Steps } from '@/components/steps';
 import { TournamentForm } from '@/components/tournament-form';
 import { PouleSelector } from '@/components/poule-selector';
+import PouleViewer  from '@/components/poule-viewer';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,7 +34,15 @@ interface Participant {
 
 interface PouleFencer {
   name: string;
-  score: number;
+  country: string;
+  scores: (number | 'V')[];
+  stats: {
+    V: number;
+    VM: number;
+    TS: number;
+    TR: number;
+    Ind: number;
+  };
 }
 
 export default function ManageTournamentClient() {
@@ -43,7 +52,7 @@ export default function ManageTournamentClient() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [numPoules, setNumPoules] = useState<number | null>(null);
-  const [poules, setPoules] = useState<PouleFencer[][]>([]); 
+  const [poules, setPoules] = useState<PouleFencer[][]>([]);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const tournamentId = Array.isArray(params.id) ? params.id[0] : params.id;
 
@@ -53,7 +62,12 @@ export default function ManageTournamentClient() {
         const response = await fetch(`/api/tournaments/${tournamentId}`);
         if (response.ok) {
           const data = await response.json();
-          setCurrentStep(data.currentStage || 0); 
+          setCurrentStep(data.currentStage || 0);
+          setNumPoules(data.numPoules || 0);
+          setParticipants(data.participants || []);
+          if (data.poules) {
+            setPoules(JSON.parse(data.poules));
+          }
         }
       } catch (error) {
         console.error('Error fetching tournament data:', error);
@@ -83,7 +97,7 @@ export default function ManageTournamentClient() {
           }
   
           setIsAuthenticated(true);
-          fetchTournamentData(); 
+          fetchTournamentData();
         } catch (error) {
           console.error('Authentication error:', error);
           localStorage.removeItem('token');
@@ -93,26 +107,7 @@ export default function ManageTournamentClient() {
   
       checkAuth();
     }
-  }, [params, router]);
-
-  useEffect(() => {
-    const fetchTournamentData = async () => {
-      try {
-        const response = await fetch(`/api/tournaments/${tournamentId}`);
-        if (response.ok) {
-          const data = await response.json();
-          setCurrentStep(data.currentStage || 0);
-          if (data.poules) {
-            setPoules(JSON.parse(data.poules));
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching tournament data:', error);
-      }
-    };
-  
-    fetchTournamentData();
-  }, [tournamentId]);
+  }, [params, router, tournamentId]);
 
   const handleNext = async () => {
     if (currentStep === 0) {
@@ -120,30 +115,13 @@ export default function ManageTournamentClient() {
     } else if (currentStep === 1 && numPoules === null) {
       console.error('You need to select the number of poules before proceeding');
       return;
-    } else if (currentStep === 1 && numPoules === 0) {
-      try {
-        const body = {
-          currentStage: 3,
-          numPoules,
-        };
-        const response = await fetch(`/api/tournaments/${tournamentId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        });
-        if (response.ok) {
-          setCurrentStep(3);
-        } else {
-          console.error('Failed to update tournament');
-        }
-      } catch (error) {
-        console.error('Error updating tournament:', error);
-      }
     } else if (currentStep < steps.length - 1) {
       try {
-        const body = currentStep === 1
-          ? { currentStage: currentStep + 1, numPoules }
-          : { currentStage: currentStep + 1 };
+        const body = {
+          currentStage: currentStep + 1,
+          numPoules: numPoules,
+          poules: JSON.stringify(poules)
+        };
   
         const response = await fetch(`/api/tournaments/${tournamentId}`, {
           method: 'PUT',
@@ -158,41 +136,12 @@ export default function ManageTournamentClient() {
         }
       } catch (error) {
         console.error('Error updating tournament:', error);
-      }
-    }
-    if (currentStep === 2) {
-      if (poules.length === 0) {
-        console.error('Poules no están disponibles');
-        return;
-      }
-  
-      const body = {
-        currentStage: currentStep + 1,
-        poules,
-      };
-  
-      try {
-        const response = await fetch(`/api/tournaments/${tournamentId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        });
-  
-        if (response.ok) {
-          setCurrentStep(currentStep + 1);
-        } else {
-          console.error('Error actualizando el torneo');
-        }
-      } catch (error) {
-        console.error('Error actualizando el torneo', error);
       }
     }
   };
 
   const handlePrevious = () => {
-    if (currentStep === 4 && numPoules === 0) {
-      setCurrentStep(1);
-    } else if (currentStep > 0) {
+    if (currentStep > 0) {
       setCurrentStep(currentStep - 1);
     }
   };
@@ -209,7 +158,7 @@ export default function ManageTournamentClient() {
         if (response.ok) {
           setCurrentStep(1);
           setShowConfirmDialog(false);
-        } else {
+        }else {
           console.error('Failed to update tournament');
         }
       } catch (error) {
@@ -226,13 +175,13 @@ export default function ManageTournamentClient() {
     setParticipants(updatedParticipants);
   };
 
-  const handleSelectPoules = (numPoules: number) => {
-    setNumPoules(numPoules);
-  };
-
   if (!isAuthenticated) {
     return <div>Authenticating...</div>;
   }
+
+  const handleSelectPoules = (selectedNumPoules: number) => {
+    setNumPoules(selectedNumPoules);
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -244,7 +193,7 @@ export default function ManageTournamentClient() {
         <CardContent>
           <Steps steps={steps} currentStep={currentStep} />
           <div className="mt-8 space-y-4">
-            {params && (
+            {currentStep === 0 && (
               <TournamentForm
                 step={currentStep}
                 onUpdateParticipants={handleUpdateParticipants}
@@ -253,7 +202,18 @@ export default function ManageTournamentClient() {
             )}
             
             {currentStep === 1 && (
-              <PouleSelector numParticipants={participants.length} onSelectPoules={handleSelectPoules} />
+              <PouleSelector
+                numParticipants={participants.length}
+                onSelectPoules={handleSelectPoules}
+              />
+            )}
+
+            {currentStep === 2 && numPoules !== null && (
+              <PouleViewer
+                fencers={participants}
+                numPoules={numPoules}
+                onUpdatePoules={handleUpdatePoules}
+              />
             )}
             
             <div className="flex justify-between">
